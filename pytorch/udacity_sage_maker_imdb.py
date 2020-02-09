@@ -209,7 +209,42 @@ pd.concat([pd.DataFrame(train_y), pd.DataFrame(train_X_len), pd.DataFrame(train_
 
 
 
-import torch
+
+import torch.nn as nn
+
+
+class LSTMClassifier(nn.Module):
+    """
+    This is the simple RNN model we will be using to perform Sentiment Analysis.
+    """
+
+    def __init__(self, embedding_dim, hidden_dim, vocab_size):
+        """
+        Initialize the model by settingg up the various layers.
+        """
+        super(LSTMClassifier, self).__init__()
+
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim)
+        self.dense = nn.Linear(in_features=hidden_dim, out_features=1)
+        self.sig = nn.Sigmoid()
+
+        self.word_dict = None
+
+    def forward(self, x):
+        """
+        Perform a forward pass of our model on some input.
+        """
+        x = x.t()
+        lengths = x[0, :]
+        reviews = x[1:, :]
+        embeds = self.embedding(reviews)
+        lstm_out, _ = self.lstm(embeds)
+        out = self.dense(lstm_out)
+        out = out[lengths - 1, range(len(lengths))]
+        return self.sig(out.squeeze())
+
+
 import torch.utils.data
 
 # Read in only the first 250 rows
@@ -223,3 +258,86 @@ train_sample_X = torch.from_numpy(train_sample.drop([0], axis=1).values).long()
 train_sample_ds = torch.utils.data.TensorDataset(train_sample_X, train_sample_y)
 # Build the dataloader
 train_sample_dl = torch.utils.data.DataLoader(train_sample_ds, batch_size=50)
+
+
+def train(model, train_loader, epochs, optimizer, loss_fn, device):
+    for epoch in range(1, epochs + 1):
+        model.train()
+        total_loss = 0
+        for batch in train_loader:
+            batch_X, batch_y = batch
+
+            batch_X = batch_X.to(device)
+            batch_y = batch_y.to(device)
+
+            # TODO: Complete this train method to train the model provided.
+            optimizer.zero_grad()
+            output = model.forward(batch_X)
+            loss = loss_fn(output, batch_y)
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.data.item()
+        print("Epoch: {}, BCELoss: {}".format(epoch, total_loss / len(train_loader)))
+
+
+import torch.optim as optim
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = LSTMClassifier(32, 100, 5000).to(device)
+optimizer = optim.Adam(model.parameters())
+loss_fn = torch.nn.BCELoss()
+epochs = 1
+train(model, train_sample_dl, epochs, optimizer, loss_fn, device)
+
+
+test_review = 'The simplest pleasures in life are the best, and this film is one of them. Combining a rather basic storyline of love and adventure this movie transcends the usual weekend fair with wit and unmitigated charm.'
+
+
+def predict_fn(input_data, model):
+    print('Inferring sentiment of input data.')
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if model.word_dict is None:
+        raise Exception('Model has not been loaded properly, no word_dict.')
+
+    # TODO: Process input_data so that it is ready to be sent to our model.
+    #       You should produce two variables:
+    #         data_X   - A sequence of length 500 which represents the converted review
+    #         data_len - The length of the review
+
+    data_words = review_to_words(input_data)
+    data_X, data_len = convert_and_pad(model.word_dict, data_words, pad=500)
+
+
+    # Using data_X and data_len we construct an appropriate input tensor. Remember
+    # that our model expects input data of the form 'len, review[500]'.
+    data_pack = np.hstack((data_len, data_X))
+    data_pack = data_pack.reshape(1, -1)
+
+    data = torch.from_numpy(data_pack)
+    data = data.to(device)
+
+    # Make sure to put the model into evaluation mode
+    model.eval()
+
+    # TODO: Compute the result of applying the model to the input data. The variable `result` should
+    #       be a numpy array which contains a single integer which is either 1 or 0
+
+    result = model.forward(data.long())
+    result = result.detach().numpy()
+    result = 1 if result > 0.5 else 0
+
+    return np.array([result], dtype=np.int32)
+
+
+#test_review_words =  review_to_words(test_review)
+#test_review_vector, length = convert_and_pad(word_dict,test_review_words, pad=500)
+#test_review_tensor = torch.from_numpy(np.array(test_review_vector))
+#model.eval()
+#y_pred = model.forward(test_review_tensor.view(-1, 500).long())
+#print(y_pred)
+
+model.word_dict = word_dict
+print(predict_fn(test_review, model))
