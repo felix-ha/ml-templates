@@ -98,6 +98,35 @@ def impute_by_dtype():
     print(df_final)
 
 
+from sklearn.preprocessing import StandardScaler
+def standard_scaler():
+    scaler = StandardScaler()
+
+    data = {'Attribute': [-1, 1, 1, 2, 2, 5],
+            'Missing': [0.56, 0.45, 0.46, 0.5, 0.35, 0.48]}
+    df = pd.DataFrame(data)
+
+    print(pd.DataFrame(scaler.fit_transform(df), columns=df.columns))
 
 
+def standard_scaler_with_categorial_data():
+    scaler = StandardScaler()
 
+    data = {'Attribute': [-1, 1, 1, 2, 2, 5],
+            'Missing': [0.56, 0.45, 0.46, 0.5, 0.35, 0.48],
+            'Cat': [1,0,2,1, 0, 2]}
+    df = pd.DataFrame(data)
+    df['Cat'] = df['Cat'].astype('category')
+
+    df_cat = df.select_dtypes(include='category')
+    df_float =  df.select_dtypes(exclude='category')
+
+    df_float = pd.DataFrame(scaler.fit_transform(df_float), columns=df_float.columns)
+
+    df = pd.concat([df_cat, df_float], axis=1)
+    df = pd.get_dummies(df)
+    
+    print(df)
+
+
+standard_scaler_with_categorial_data()
