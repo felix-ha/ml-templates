@@ -124,64 +124,73 @@ def get_imf_woe_data(country, remove_na=True):
     return result
 
 
-
-country = 'Germany' 
-year = 1980 
-remove_na=True
-
-
-df_1 = get_imf_woe_data(country, remove_na)
-df_2 = get_imf_data(country, year, remove_na)
+def get_gdp(country):
+    df = get_imf_woe_data(country, remove_na=False)
+    df.index = df.index.astype(dtype='int64')
+    df['Y'] = df['Gross domestic product, constant prices'] 
+    df['Y'] = df['Y'].str.replace(',', '')
+    return df['Y']
 
 
-df = pd.concat([df_1, df_2], axis=1)
-
-df['Y'] = df['Gross domestic product, constant prices'] 
-df['Y'] = df['Y'].str.replace(',', '')
+if __name__ == '__main__':
     
-  
-del df['Gross domestic product, constant prices']
-del df['Gross domestic product, current prices']  
-del df['Gross domestic product per capita, constant prices']
-del df['External_Sector_CurrentAccount.xls']
-
-
-df = df.astype('float')
-
-df_new = df.iloc[1:, :].copy()
-
-
-for variable in df_new.columns:
-    if variable == 'Y':
-        continue
-    df_new[variable] = df[variable].iloc[:-1].values / df[variable].iloc[1:].values
+    country = 'Germany' 
+    year = 1980 
+    remove_na=True
     
     
-
-# model 
-
-X = df.iloc[:,:-1].values
-y = df['Y'].values
-
-
-from sklearn.ensemble import GradientBoostingRegressor   
-model = GradientBoostingRegressor(n_estimators = 100, max_depth = 2, min_samples_split=2, learning_rate = 0.05)
-model.fit(X,y)
+    df_1 = get_imf_woe_data(country, remove_na)
+    df_2 = get_imf_data(country, year, remove_na)
     
-from sklearn.linear_model import LinearRegression
-#model = LinearRegression().fit(X, y)
-#r_squared = reg.score(X, y)
-
-
-from sklearn.metrics import mean_squared_error
-y_pred = model.predict(X)
-mse = mean_squared_error(y, y_pred)
-
-
-print(mse)
-
-
-
-
-
-
+    
+    df = pd.concat([df_1, df_2], axis=1)
+    
+    df['Y'] = df['Gross domestic product, constant prices'] 
+    df['Y'] = df['Y'].str.replace(',', '')
+        
+      
+    del df['Gross domestic product, constant prices']
+    del df['Gross domestic product, current prices']  
+    del df['Gross domestic product per capita, constant prices']
+    del df['External_Sector_CurrentAccount.xls']
+    
+    
+    df = df.astype('float')
+    
+    df_new = df.iloc[1:, :].copy()
+    
+    
+    for variable in df_new.columns:
+        if variable == 'Y':
+            continue
+        df_new[variable] = df[variable].iloc[:-1].values / df[variable].iloc[1:].values
+        
+        
+    
+    # model 
+    
+    X = df.iloc[:,:-1].values
+    y = df['Y'].values
+    
+    
+    from sklearn.ensemble import GradientBoostingRegressor   
+    model = GradientBoostingRegressor(n_estimators = 100, max_depth = 2, min_samples_split=2, learning_rate = 0.05)
+    model.fit(X,y)
+        
+    from sklearn.linear_model import LinearRegression
+    #model = LinearRegression().fit(X, y)
+    #r_squared = reg.score(X, y)
+    
+    
+    from sklearn.metrics import mean_squared_error
+    y_pred = model.predict(X)
+    mse = mean_squared_error(y, y_pred)
+    
+    
+    print(mse)
+    
+    
+    
+    
+    
+    

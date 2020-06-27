@@ -34,7 +34,7 @@ def save_plot(df, country, variable):
 
 
 
-file = r"C:\Users\hauer\Dropbox\CFDS\Project\data\WEOApr2020all.csv"
+file = r"C:\Users\hauer\Dropbox\CFDS\Project\data\WEO\WEOApr2020all.csv"
 
 df = pd.read_csv(file)
 
@@ -43,7 +43,7 @@ columns = df.columns
 available_countries = df['Country'].unique()
 available_variables = df['Subject Descriptor'].unique()
 
-
+df_available_countries = df.iloc[:,[1,3]].drop_duplicates()
 
 
 
@@ -51,7 +51,7 @@ country =  'Germany'
 variable = 'Unemployment rate'
 
 
-
+available_countries = ['Germany']
 for country in available_countries:
     
     df_country = df[df['Country'] == country]
