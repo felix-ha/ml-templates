@@ -126,10 +126,108 @@ def get_imf_woe_data(country, remove_na=True):
 
 def get_gdp(country):
     df = get_imf_woe_data(country, remove_na=False)
-    df.index = df.index.astype(dtype='int64')
-    df['Y'] = df['Gross domestic product, constant prices'] 
-    df['Y'] = df['Y'].str.replace(',', '')
+    df.index = df.index.astype(dtype='int64')   
+    df['Y'] = df['Gross domestic product, constant prices']  
+    df['Y'] = df['Y'].str.replace(',', '').astype('float')
     return df['Y']
+
+
+def convert_time_series_to_relative(df):
+    # Assings each t the Values of X_t / X_(t-1)
+    # X_t will be dropped
+    
+    df_new = df.iloc[1:, :].copy()
+    
+    for variable in df.columns:
+        df_new[variable] = df[variable].iloc[:-1].values / df[variable].iloc[1:].values
+        
+    return df_new
+ 
+    
+
+def get_oecd_data(location, start, end): 
+
+
+    
+    result = pd.DataFrame()
+    
+    path = r'C:\Users\hauer\Dropbox\CFDS\Project\data\OECD'
+    
+    for file_name in os.listdir(path):
+    
+        
+        file = os.path.join(path, file_name)
+        
+        df_orig = pd.read_csv(file)
+        unique_subjects = df_orig['SUBJECT'].unique()
+    
+        
+        for subject in unique_subjects:
+            
+            
+            df = df_orig.copy()
+            df = df[df['LOCATION'] == location] 
+            df = df[df['SUBJECT'] == subject]
+            
+            # if there is only one unique subject, the name is TOT
+            if(len(unique_subjects) == 1):
+                subject = file_name[:-4]
+            
+            
+            df = df.rename({df.columns[6]: subject}, axis='columns')
+            
+            df = df.set_index('TIME')
+            
+            result = pd.concat([result, df[subject]], axis=1)
+        
+        
+    result = result[result.index >= start]
+    result = result[result.index <= end]
+    result = result.dropna(axis=1)
+    
+    return result
+
+
+def get_predictions_weo(start_forecast, end_forecast):
+    #  WEO Fall Year predicts GDP Growth in Year + 1
+    # S = Spring
+    # F = Fall
+    
+    path = r'C:\Users\hauer\Dropbox\CFDS\Project\data\IMF_WEO\WEOhistorical.xlsx'
+    df =  pd.read_excel(path,sheet_name='ngdp_rpch')
+    
+    df = df[df['country'] == 'Germany']
+    
+    
+    for col in df.columns:
+        if 'S' in col:
+            del df[col] 
+            
+    del df['WEO_Country_Code']     
+    
+    
+    df = df[df['year'] >= start_forecast]
+    
+    
+    predictions_weo = []
+    years = np.arange(start_forecast, end_forecast+1, 1)
+    
+    for year in years:
+       
+        df_curr = df[df['year'] == year]
+        
+        year_WEO = year -1 
+        column = 'F' + str(year_WEO) + 'ngdp_rpch'
+        y_pred_year = df_curr[column].values[0]
+        
+        predictions_weo.append(y_pred_year)
+    
+    predictions_weo = pd.Series(data = predictions_weo, index = years)
+    
+    return predictions_weo
+
+
+    
 
 
 if __name__ == '__main__':
