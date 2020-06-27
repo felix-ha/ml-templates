@@ -97,6 +97,9 @@ def get_imf_data(country, year, remove_na=True):
     if remove_na:
         result = result.dropna(axis=1) 
         
+    result.index = result.index.astype(dtype='int64') 
+    result = result.astype('float')
+    
     return result     
 
 
